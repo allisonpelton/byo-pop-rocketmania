@@ -14,7 +14,4 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/RocketApp.cpp)
       target_compile_definitions(rocketmania PRIVATE RM_CRASH_REPORT)
     endif()
   endif()
-  add_custom_command(TARGET rocketmania POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:SDL2::SDL2> ${PORT_RUNTIME_DLLS} $<TARGET_FILE_DIR:rocketmania>
-    VERBATIM)
 endif()

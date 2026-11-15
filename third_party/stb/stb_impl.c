@@ -1,4 +1,7 @@
 /* Single translation unit holding the stb implementations used by the port. */
+/* only the image formats of this game's files (its manifest) */
+#define STBI_ONLY_PNG
+#define STBI_ONLY_GIF
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_HDR
 #define STBI_NO_PSD

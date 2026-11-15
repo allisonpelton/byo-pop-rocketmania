@@ -30,13 +30,13 @@
 #include "../platform/Audio.h"
 #include "../platform/MemReport.h"
 #include "../platform/CycleSplit.h"
+#include "TextScanner.h"
 
 #include <SDL.h>
 #include <stb_image_write.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <sstream>
 #include <sys/stat.h>
 
 using namespace Sexy;
@@ -852,10 +852,10 @@ void SexyAppBase::LoadRegistry()
 	if (!Platform::VFS::Get().ReadAll(RegistryPath(), aData))
 		return;
 
-	std::istringstream aStream(std::string(aData.begin(), aData.end()));
+	TextScanner aStream(std::string(aData.begin(), aData.end()));
 	std::string aKey;
 	std::string aLine;
-	while (std::getline(aStream, aLine))
+	while (aStream.GetLine(aLine))
 	{
 		if ((!aLine.empty()) && (aLine[aLine.length() - 1] == '\r'))
 			aLine.resize(aLine.length() - 1);
@@ -2964,7 +2964,7 @@ bool SexyAppBase::LoadScriptFile(const std::string& theFileName, const char* the
 		if (aText.find_first_not_of(" \t\r\n") == std::string::npos)
 			continue;
 
-		std::istringstream aStream(aText);
+		TextScanner aStream(aText);
 		ScriptCommand aCommand;
 		aCommand.mLine = aLineNum;
 		if ((!(aStream >> aCommand.mUpdateCount)) || (!(aStream >> aCommand.mCommand)))
@@ -2974,7 +2974,7 @@ bool SexyAppBase::LoadScriptFile(const std::string& theFileName, const char* the
 			continue;
 		}
 		std::string aRest;
-		std::getline(aStream, aRest);
+		aStream.GetLine(aRest);
 		aCommand.mArgs = TrimScriptArgs(aRest);
 		theCommands->push_back(aCommand);
 	}
@@ -3008,7 +3008,7 @@ int SexyAppBase::RunScriptCommand(const ScriptCommand& theCommand, std::string* 
 {
 	const ScriptCommand& aCommand = theCommand;
 	const std::string& aName = aCommand.mCommand;
-	std::istringstream anArgs(aCommand.mArgs);
+	TextScanner anArgs(aCommand.mArgs);
 	int x = 0;
 	int y = 0;
 
@@ -3218,7 +3218,7 @@ static const size_t kMaxLiveCommands = 1024;
 bool SexyAppBase::QueueLiveCommand(const std::string& theLine, int theLineNum)
 {
 	std::string aText = StripScriptComment(theLine);
-	std::istringstream aStream(aText);
+	TextScanner aStream(aText);
 	ScriptCommand aCommand;
 	aCommand.mUpdateCount = 0;
 	aCommand.mLine = theLineNum;
@@ -3230,7 +3230,7 @@ bool SexyAppBase::QueueLiveCommand(const std::string& theLine, int theLineNum)
 		return false;
 	}
 	std::string aRest;
-	std::getline(aStream, aRest);
+	aStream.GetLine(aRest);
 	aCommand.mArgs = TrimScriptArgs(aRest);
 	mLiveCommands.push_back(aCommand);
 	return true;
@@ -3372,17 +3372,16 @@ void SexyAppBase::RunLiveCommands()
 // they reach the game the way a hand's events do, through SDL_PollEvent and HandleEvent
 
 // "<x> <y>" in window pixels, or "game <x> <y>" in the game's, mapped to the window as it shows the game now
-static bool ReadRealPoint(SexyAppBase* theApp, std::istringstream& theArgs, int* theX, int* theY)
+static bool ReadRealPoint(SexyAppBase* theApp, TextScanner& theArgs, int* theX, int* theY)
 {
-	std::streampos aStart = theArgs.tellg();
+	size_t aStart = theArgs.Tell();
 	std::string aWord;
 	bool isGame = false;
 	if ((theArgs >> aWord) && (aWord == "game"))
 		isGame = true;
 	else
 	{
-		theArgs.clear();
-		theArgs.seekg(aStart);
+		theArgs.SeekTo(aStart);
 	}
 
 	int x = 0;
@@ -3397,7 +3396,7 @@ static bool ReadRealPoint(SexyAppBase* theApp, std::istringstream& theArgs, int*
 }
 
 // [button]: left (also when there is none), right, middle, x1 or x2; 0 for another word
-static int ReadRealButton(std::istringstream& theArgs)
+static int ReadRealButton(TextScanner& theArgs)
 {
 	std::string aWord;
 	if (!(theArgs >> aWord))
@@ -3657,7 +3656,7 @@ int SexyAppBase::RunRealInputCommand(const ScriptCommand& theCommand, std::strin
 {
 	const ScriptCommand& aCommand = theCommand;
 	const std::string& aName = aCommand.mCommand;
-	std::istringstream anArgs(aCommand.mArgs);
+	TextScanner anArgs(aCommand.mArgs);
 	int x = 0;
 	int y = 0;
 

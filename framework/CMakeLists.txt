@@ -7,7 +7,8 @@ file(GLOB FRAMEWORK_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
   ${SHARED_ROOT}/platform/*.cpp)
 # Software triangle rasterizer pieces are #included by SWTri.cpp, not compiled on their own.
-list(FILTER FRAMEWORK_SOURCES EXCLUDE REGEX ".*/SWTri_[^/]*\\.cpp$")
+list(FILTER FRAMEWORK_SOURCES EXCLUDE REGEX ".*/(SWTri_[^/]*|DerivedRuntime)\\.cpp$")
+add_library(derived_runtime OBJECT ${SHARED_ROOT}/platform/DerivedRuntime.cpp)
 
 # The table of what is imported from an installed game (platform/saveimport.json), compiled into the
 # framework for platform/SaveImport.cpp, which the game's main.cpp calls for -importsaves.
@@ -32,6 +33,7 @@ add_library(sexycrt STATIC ${SHARED_ROOT}/platform/crt/CrtQsort.cpp)
 target_include_directories(sexycrt PUBLIC ${SHARED_ROOT})
 
 add_library(sexyframework STATIC ${FRAMEWORK_SOURCES})
+target_sources(sexyframework INTERFACE $<TARGET_OBJECTS:derived_runtime>)
 target_include_directories(sexyframework PUBLIC
   ${SHARED_ROOT}
   ${CMAKE_CURRENT_SOURCE_DIR})
