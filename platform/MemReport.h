@@ -39,8 +39,7 @@ struct MemReport
 // the graphics device and the sound device are up, and before a game file is read; a later call changes nothing.
 void NoteStartMemory();
 
-// The process's working set and private bytes now; false where the platform cannot tell (both are then 0). In a
-// browser both are the size of the page's heap.
+// The process's working set and private bytes now; false where the platform cannot tell (both are then 0).
 bool GetProcessMemory(size_t* theWorkingSet, size_t* thePrivateBytes);
 
 // The private bytes NoteStartMemory() recorded, 0 when it was never called.

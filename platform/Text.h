@@ -1,8 +1,8 @@
 #ifndef __PLATFORM_TEXT_H__
 #define __PLATFORM_TEXT_H__
 
-// Text encodings: the games' strings are narrow Latin-1 (Windows-1252 in the originals); SDL, the browser,
-// mod.json and the port's JSON files use UTF-8. And game paths as text, for code that links no file system.
+// Text encodings: the games' strings are narrow Latin-1 (Windows-1252 in the originals); SDL and the port's JSON files
+// use UTF-8. And game paths as text, for code that links no file system.
 
 #include <cstdint>
 #include <string>

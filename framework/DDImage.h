@@ -4,7 +4,7 @@
 // Portable DDImage: a MemoryImage that can be the screen (drawn through DDInterface's GPU path) and
 // that can carry an HD pixel set used only for its GPU texture.
 //
-// HD images: a mod may provide "name@2x.png". The image keeps its logical mWidth/mHeight (so all
+// HD images: a "name@2x.png" beside an image is its HD copy. The image keeps its logical mWidth/mHeight (so all
 // game-side source rectangles keep working), mBits holds a 1x copy for CPU code, and mHDBits holds
 // the full-resolution pixels uploaded to the texture. If game code modifies the 1x bits later
 // (BitsChanged), the HD pixels are discarded and the texture follows mBits.
@@ -31,6 +31,15 @@ public:
 private:
 	void Init();
 	void RemoveTexture();
+	// port: a draw by the software blitters onto the screen tells its display what it covered (DDInterface::ScreenDrawn);
+	// the second form rounds float bounds out by the margin BltSoftwareTransformed takes and keeps them within theClipRect
+	void NoteScreenDrawn(const Rect& theRect)
+	{
+		if (mIsScreen && (mDDInterface != NULL))
+			NoteScreenDrawnTo(theRect);
+	}
+	void NoteScreenDrawn(float theMinX, float theMinY, float theMaxX, float theMaxY, const Rect& theClipRect);
+	void NoteScreenDrawnTo(const Rect& theRect);
 
 public:
 	DDImage();

@@ -1,5 +1,5 @@
-# Toolchain for native Windows builds with llvm-mingw, targeting 32-bit x86 so pointer sizes match both
-# the original executable and wasm32.
+# Toolchain for native Windows builds with llvm-mingw, targeting 32-bit x86 so pointer sizes match
+# the original executable.
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR i686)
 
@@ -7,7 +7,7 @@ if(NOT LLVM_MINGW_ROOT)
   if(DEFINED ENV{LLVM_MINGW_ROOT})
     set(LLVM_MINGW_ROOT "$ENV{LLVM_MINGW_ROOT}")
   else()
-    set(LLVM_MINGW_ROOT "E:/retools/llvm-mingw-20261006-ucrt-x86_64")
+    message(FATAL_ERROR "Set LLVM_MINGW_ROOT to your llvm-mingw folder")
   endif()
 endif()
 

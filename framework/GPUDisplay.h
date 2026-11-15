@@ -45,9 +45,11 @@ public:
 	void UpdateDisplaySize() override;
 	std::string RendererName() const override;
 	void ReleaseTextures() override;
+	// its pictures go to the GPU through GPU2D at their first draw, not through DDInterface's textures
+	void UploadLoadedImage(MemoryImage* /*theImage*/) override {}
 
-	// The GL context was lost and given back (the web's webglcontextlost and webglcontextrestored events; a native GL
-	// context is not reported lost). The device forgets its GL names at once and no GL call is made until the next
+	// The GL context was lost and given back (where the platform reports that). The device forgets its GL names at once
+	// and no GL call is made until the next
 	// BeginFrame after the restore, which has the device rebuild everything and marks every widget dirty.
 	void OnContextLost();
 	void OnContextRestored();
@@ -76,6 +78,9 @@ public:
 	void DrawTrianglesTex(Image* theTexture, const TriVertex theVertices[][3], int theNumTriangles,
 		const Rect* theClipRect, const Color& theColor, int theDrawMode, float tx, float ty, bool blend) override;
 	void ClearRect(const Rect& theRect) override;
+	// the stack is GPU2D's (the base class's mTransformStack is not used here)
+	void PushTransform(const SexyMatrix3& theTransform, bool theConcatenate = true) override;
+	void PopTransform() override;
 
 	bool ReadScreen(ulong* theBits) override;
 	bool ReadScreenFull(std::vector<uint32_t>& theBits, int& theWidth, int& theHeight) override;

@@ -1,4 +1,4 @@
-# Vendored third-party code, built as static libraries for both native and Emscripten targets.
+# Vendored third-party code, built as static libraries.
 
 # stb (public domain / MIT): image decoding and Ogg Vorbis decoding
 add_library(stb STATIC stb/stb_impl.c)
@@ -42,7 +42,7 @@ file(GLOB TREMOR_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/tremor/*.c)
 add_library(tremor STATIC ${TREMOR_SOURCES})
 target_include_directories(tremor PUBLIC tremor)
 if(NOT MSVC)
-  # misc.h calls abs() without <stdlib.h> (an error for C99 compilers such as Emscripten's clang)
+  # misc.h calls abs() without <stdlib.h> (an error for strict C99 compilers)
   target_compile_options(tremor PRIVATE -w -include stdlib.h)
 endif()
 

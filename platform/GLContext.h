@@ -1,8 +1,8 @@
 #ifndef __GLCONTEXT_H__
 #define __GLCONTEXT_H__
 
-// port: the OpenGL context of the GPU path (framework/GPUInterface.h): OpenGL ES 3.0 (WebGL2 in a browser, the driver's
-// ES context natively), else GL 3.3 core. One per game; the window must have been made with SDL_WINDOW_OPENGL.
+// port: the OpenGL context of the GPU path (framework/GPUInterface.h): OpenGL ES 3.0 (the driver's ES context), else GL
+// 3.3 core. One per game; the window must have been made with SDL_WINDOW_OPENGL.
 
 #include <SDL.h>
 
@@ -19,7 +19,7 @@ public:
 	static GLContext* Create(SDL_Window* theWindow);
 	~GLContext();
 
-	// ES 3.0 / WebGL2 (shaders take "#version 300 es"), or GL 3.3 core ("#version 330 core" and a VAO bound)
+	// ES 3.0 (shaders take "#version 300 es"), or GL 3.3 core ("#version 330 core" and a VAO bound)
 	bool IsES() const { return mIsES; }
 	// The version line and precision a shader source starts with in this context
 	std::string ShaderHeader() const;

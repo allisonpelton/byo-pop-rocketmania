@@ -1,7 +1,7 @@
 #ifndef __SEXYAPPBASE_H__
 #define __SEXYAPPBASE_H__
 
-// Portable SexyAppBase (SDL2 / Emscripten).
+// Portable SexyAppBase (SDL2).
 //
 // Keeps the SexyAppFramework 1.3 public API and virtual hooks that game code overrides or calls, with
 // the Win32/DirectX members replaced by SDL ones. Behavioural contracts preserved from 1.3:
@@ -10,8 +10,6 @@
 //   * Rand()/SRand() MT19937 seeded with the tick count in Init(),
 //   * properties/default.xml string table, registry-style settings (persisted to a file),
 //   * dialogs (DoDialog/KillDialog/DialogButtonPress -> ButtonPress(2000/3000 + id)).
-// On Emscripten the loop runs from emscripten_set_main_loop; each browser frame runs every due update
-// and then one draw.
 
 #include "Common.h"
 #include "Rect.h"
@@ -71,32 +69,6 @@ struct ScriptCommand
 	std::string mArgs;
 	int mLine;
 };
-
-// port (web): a file the app writes at shutdown, as it would be written now (SexyAppBase::GetShutdownSaves)
-struct ShutdownSave
-{
-	std::string mFileName;  // the app's name for it, e.g. "userdata\savegame.dat"
-	std::string mData;
-};
-
-// port: a game's message about a mod, shown in the mod menu (SexyAppBase::GetModMessages), e.g. a rule the
-// game could not use
-struct ModMessage
-{
-	std::string mModId;  // "" for a message about all mods
-	std::string mText;   // UTF-8
-	bool mIsError;
-};
-
-// port: what SexyAppBase::RequestRestart did
-enum
-{
-	RESTART_STARTED,   // the app shuts down and starts again
-	RESTART_CONFIRM,   // a game is in progress: ask first (theMessage), then call again confirmed
-	RESTART_BLOCKED    // not now (theMessage says why)
-};
-
-class ModMenu;
 
 enum
 {
@@ -194,6 +166,11 @@ public:
 	DDInterface* mDDInterface;
 	bool mAlphaDisabled;
 	bool mWant3D;  // port: the 3D choice Set3DAcclerated recorded (mUserChanged3DSetting), applied again whenever the display is made
+	// port: the 3D choice of a player who has never made one (no "Is3D" saved): true, the GPU's, unless the port's original
+	// starts in 2D with no saved value (its DDInterface starts with mIs3D false and nothing turns mAutoEnable3D on), whose
+	// constructor sets it false; the display keeps the 2D flags through every change of mode (DDInterface::mAppWants3D,
+	// docs/MEMORY.md "The 2D flags on the GPU path")
+	bool mDefault3D;
 	MusicInterface* mMusicInterface;
 	bool mReadFromRegistry;
 	std::string mRegisterLink;
@@ -288,6 +265,7 @@ public:
 
 	int mSyncRefreshRate;
 	bool mVSyncUpdates;
+	bool mUpdatesPerUpdateFExact;	// port: the ticks a vsynched frame owes are kept as a double, not rounded to a float (see Process)
 	bool mWaitForVSync;
 	bool mUserChanged3DSetting;
 	bool mAutoEnable3D;
@@ -314,13 +292,6 @@ public:
 	int mLastMouseX;  // last mouse position in logical coordinates
 	int mLastMouseY;
 	bool mLoadingThreadRunning;  // LoadingThreadProc() is running (synchronously, see StartLoadingThread)
-	bool mNothingDue;  // Emscripten: the last Process() found nothing to do before the next browser frame
-	bool mBackupDirty;  // Emscripten: a user file changed since the last UpdateUserDataBackup()
-	DWORD mLastBackupCheck;  // Emscripten: when UpdateUserDataBackup() last compared, and last backed up
-	DWORD mLastBackupTime;
-	bool mBackupHasSave;  // Emscripten: what the last backup held as the shutdown saves and registry
-	std::string mBackupSave;  // the saves' names and bytes, one after the other
-	std::string mBackupRegistry;
 	bool mRegistryCapture;  // RegistryWrite() only changes mRegistry (GetShutdownRegistryText)
 
 	// Test hooks, set from the command line (also the base for a "set seed" option and replays):
@@ -347,17 +318,12 @@ public:
 	//                                          event does (mute, LostFocus/GotFocus), like origrun's
 	//                     quit                 Shutdown()
 	//                     pointer              answers POINTER {"x","y","in"}: the mouse as the widgets
-	//                                          last saw it, in game pixels (tools/web/pagecheck.js)
+	//                                          last saw it, in game pixels
 	//                     memreport [file]     answers MEMREPORT and one line of JSON: what the pictures, the
 	//                                          sounds and the songs hold in bytes, and the process's working
 	//                                          set and private bytes now and at the end of Init
 	//                                          (platform/MemReport.h); with a file, also writes the table by
 	//                                          picture and the heaps there. It changes nothing in the game.
-	//                     modmenu <what> ...   the mod menu (framework/ModMenu.h; a mod id with spaces in
-	//                                          "..."): open, close, page <mod> | list, enable <mod> 0|1,
-	//                                          move <mod> -1|1, set <mod> <setting> <JSON value>, reset <mod>,
-	//                                          restart [confirm], dump <file> (the state JSON). F2 is real
-	//                                          input only: "key F2" goes to the focused widget.
 	//                   Other commands go to the game's HandleScriptCommand (WinDMApp: save <file>).
 	//   -fast           updates run back to back on a virtual clock and the screen is drawn every
 	//                   FAST_DRAW_INTERVAL updates, so a script runs as fast as the machine allows
@@ -371,11 +337,9 @@ public:
 	//   -windowscale=N  make the window N times the logical size (1..4) instead of 2x when the desktop has room
 	//                   (native only), e.g. -windowscale=1 for the game's own size, as the original's window (a test option:
 	//                   only a test run, IsTestRun, honours it)
-	//   -fix=<id>[=off], -lite=<id>[=off]  one of the game's fixes or lite changes on (or off), whatever the mods
-	//                   say; -original  every other one off, the original game (platform/GameOptions.h)
 	//   -realinput=<file>  real input: timed SDL events pushed into SDL's own queue (SDL_PushEvent), so they take
 	//                   the path a hand's events take (SDL_PollEvent, HandleEvent, the window-to-game mapping, the
-	//                   widget manager, F2 and Alt+Enter); the system's own mouse, keyboard, text and focus events
+	//                   widget manager and Alt+Enter); the system's own mouse, keyboard, text and focus events
 	//                   are dropped, so the run is the same whatever happens to the real ones (docs/REAL_INPUT.md).
 	//                   The file is a -script file: the events of a line are pushed when update <count> starts and
 	//                   handled after it, before the next update, as a hand's events between two updates are. Not
@@ -425,9 +389,8 @@ public:
 	//                   on the log, which is then flushed line by line: "OK <command>" when the framework did it,
 	//                   "ERROR <command>: <reason>" when it could not or nobody knows the command, and a game's own
 	//                   command answers itself (STATE {...}, OK, ERROR). The window's own input still counts, as in
-	//                   a plain run (with -realinput it is dropped). The run is a test run (IsTestRun). On the web,
-	//                   byopop_test_command(line) queues one line the same way (the player-only test page's
-	//                   byopop.test.command, docs/WEB_PLAYER.md). The channel's own command:
+	//                   a plain run (with -realinput it is dropped). The run is a test run (IsTestRun). The channel's
+	//                   own command:
 	//                     wait <n>              the lines after it wait n updates; answered "OK wait <n>" when
 	//                                           they are up (n 0: at once)
 	//   -hold           with -commands, natively: once the game has loaded, an update runs only when the driver
@@ -461,34 +424,20 @@ public:
 	bool mRealMouseIn;         // the window has had SDL_WINDOWEVENT_ENTER and no LEAVE since
 	unsigned short mRealMods;  // KMOD_ state
 	std::vector<int> mRealKeysDown;  // the SDL keycodes held
-	// live commands: -commands=<file> natively, byopop_test_command on the web (RunLiveCommands)
+	// live commands: -commands=<file> (RunLiveCommands)
 	std::string mCommandsFileName;
 	Platform::FileSizeWatch mCommandsFileWatch;  // how big the file is, asked on every update (PollLiveCommands)
 	long long mCommandsFilePos;    // bytes of the file read so far
 	int mCommandsFileLine;         // its lines read so far
 	bool mCommandsWaitLogged;      // "waiting for" the file was logged
-	int mLiveCommandCount;         // the web's commands so far (their line numbers)
 	std::vector<ScriptCommand> mLiveCommands;  // waiting for the next update
 	bool mCommandsHold;            // -hold: once loaded, an update runs only when the driver's lines let it
 	int mLiveRunUntil;             // -hold: the updates run while mUpdateCount is below it
 	int mLiveWaitUntil;            // "wait <n>": the update its answer and the lines after it wait for, -1 for none
 	std::string mLiveWaitLine;     // that wait's line, for its answer
 
-	// port: the mod menu (framework/ModMenu.h, docs/MOD_MENU_DESIGN.md). F2 opens and closes it; nothing of it
-	// exists until it first opens.
-	ModMenu* mModMenu;          // while it is open
-	bool mModMenuKeyDown;       // the F2 that toggled it is down: its key-up is not passed on
-	int mModMenuClosingKey;     // the key that closed it (Esc, Enter, Space) while it is held: its repeats and the
-	                            // text they type are not passed on, so they cannot reach the game (its release is)
 	int mKeyInHandling;         // the key whose real press (or the text it typed) the widgets are getting, else 0
 	int mLastKeyPressed;        // the last real key pressed: the key behind the text input that follows it
-	bool mRestartRequested;     // RequestRestart: the app shuts down to start again (main(): TakeRelaunch)
-
-	// port (web): the click that brings the page back from the background reaches neither the game nor its
-	// widgets (HandleEvent)
-	bool mActivationClickPending; // the app just became active: a press until mActivatedTime + 150 ms activated it
-	DWORD mActivatedTime;       // SDL's timestamp of that event
-	DWORD mActivationButtons;   // SDL_BUTTON masks of the presses dropped that way: their releases are dropped too
 
 protected:
 	void RehupFocus();
@@ -498,6 +447,7 @@ protected:
 	virtual void UpdateFrames();
 	virtual bool DoUpdateFrames();
 	virtual void DoUpdateFramesF(float theFrac);
+	void RunTestChannels();      // port: the tests' input and commands of one update, as UpdateFrames runs them
 	virtual void MakeWindow();
 	// port: the display MakeWindow makes (a DDInterface unless a game gives another, such as a GPUDisplay), and SDL
 	// window flags it adds to the window's own (0 unless a game's display needs one, such as SDL_WINDOW_OPENGL)
@@ -566,14 +516,8 @@ protected:
 	bool RegistryWrite(const std::string& theValueName, const std::string& theValue);
 	bool RegistryRead(const std::string& theValueName, std::string* theValue);
 
-	// The tail of 1.3's Start() (after the main loop), shared with the Emscripten loop callback.
+	// The tail of 1.3's Start() (after the main loop).
 	void MainLoopFinished();
-
-#ifdef __EMSCRIPTEN__
-	static void EmscriptenMainLoop(void* theArg);
-	// the page went out of sight (another tab, the browser minimized): the focus is lost at once (SexyAppBase.cpp, DoMainLoop)
-	static void EmscriptenPageHidden(SexyAppBase* theApp);
-#endif
 
 public:
 	SexyAppBase();
@@ -746,7 +690,7 @@ public:
 
 	// File access methods (through the VFS). Writes always land in the writable user dir ("userdata\x"
 	// -> <user dir>/x, other relative paths -> <user dir>/<path>); reads look there first, then in the
-	// game data (mods + base dir).
+	// game data (the base dir).
 	bool WriteBufferToFile(const std::string& theFileName, const Buffer* theBuffer);
 	bool ReadBufferFromFile(const std::string& theFileName, Buffer* theBuffer, bool dontWriteToDemo = false);
 	bool WriteBytesToFile(const std::string& theFileName, const void* theData, unsigned long theDataLen);
@@ -766,61 +710,23 @@ public:
 	// --- port additions ---
 	// Command-line style args ("-key=value"), filled by main() before Init().
 	void SetCmdLine(int argc, char** argv);
-	// Web: persists the IDBFS-mounted user dir to IndexedDB (no-op natively, files are written
-	// directly). Called after every save, registry write and erase.
+	// Called after every save, registry write and erase. The files are written directly, so it has nothing more to do.
 	virtual void SyncUserData();
-	// Web: a page can be closed, reloaded, discarded or crash without the app shutting down, and the
-	// browser may not even report it. So localStorage keeps a backup of the user dir as it would be
-	// after a shutdown at this moment (Platform::BackupUserData), restored at the next start: the user
-	// files, with the registry as WriteToRegistry() would leave it, plus GetShutdownSaves(), the files the
-	// app writes at shutdown (none: no file; Bejeweled: the save and its sidecar, taken at the same tick).
-	// Saves and settings still reach the user dir only as in 1.3.
-	virtual void GetShutdownSaves(std::vector<ShutdownSave>* theSaves);
 	// The registry writes a shutdown makes, last one last (only mRegistry changes; see mRegistryCapture)
 	virtual void WriteShutdownRegistry();
 	std::string GetShutdownRegistryText();
-	void UpdateUserDataBackup(bool force);
-	void PageGoingAway();
 	// Test hook: queues a command as if it were a -script line, run by RunScript after the commands
 	// already queued for that update. A test bot uses it, so its input takes exactly the script's path.
 	void AddScriptCommand(int theUpdateCount, const std::string& theCommand, const std::string& theArgs);
-	// A live command line (-commands, the web's byopop_test_command), queued for the next update: false for a blank
+	// A live command line (-commands), queued for the next update: false for a blank
 	// line, a comment or a full queue
 	bool QueueLiveCommand(const std::string& theLine, int theLineNum);
 
-	// --- port: the mod menu and restarts (docs/MOD_MENU_DESIGN.md 5, 6) ---
-	// The menu is a base modal widget above everything (not a dialog: it is not in mDialogMap). It pauses the
-	// game through ModalOpen()/ModalClose() exactly as a modal dialog does. F2 (no modifiers, no repeat) toggles
-	// it with real input, never in a -script run; scripts use "modmenu ..." (RunScript).
-	void OpenModMenu();
-	void CloseModMenu();
-	bool IsModMenuOpen() const { return mModMenu != NULL; }
-
-	// Restarts the game: the app shuts down as on Quit (the game's own shutdown save) and starts again. Natively
-	// main() starts the exe again (TakeRelaunch, Platform::Relaunch); on the web the page reloads. Returns
-	// RESTART_BLOCKED when CanRestartNow says no, RESTART_CONFIRM when a game is in progress and isConfirmed is
-	// false (theMessage: the question), else RESTART_STARTED.
-	int RequestRestart(bool isConfirmed, SexyString* theMessage);
-	// port: quits as the game's own Quit does (the page's Close on a game's window: byopop_quit). The default shuts
-	// down at once; a game whose Quit says goodbye first overrides it to do the same and shut down after. It must
-	// not block: on the web the sound plays only once this returns, so such a game defers its Shutdown() to an update.
-	virtual void QuitAsGame();
-	// main(), after Shutdown() and before deleting the app: true when the app should start again with theArgs
-	// (logs "restart: <args>"). A test run (rundesk's BYOPOP_TEST_RUN, the oracle's BEJ_TEST_DESKTOP, -script or a
-	// test bot) does not start again unless BYOPOP_RELAUNCH_TEST_ARGS is set: then its arguments are added.
-	bool TakeRelaunch(std::vector<std::string>* theArgs);
-	// Hooks, each with a default: whether a restart is possible now (default yes), whether a game is in progress
-	// (the restart then asks first; default no), the arguments a restart keeps (default: -gamedir, -userdir,
-	// -modsdir, -changedir, -renderscale as given; a game adds its own), and the game's messages per mod.
-	virtual bool CanRestartNow(SexyString* theReason);
-	virtual bool HasGameInProgress();
-	virtual void GetRestartArgs(std::vector<std::string>* theArgs);
-	virtual void GetModMessages(std::vector<ModMessage>* theMessages);
-	// True in a test run (rundesk, the oracle, a -script run or a test bot): a restart does not start the game
-	// again (TakeRelaunch), and MsgBox and Popup only log their message, since nobody could answer them
+	// True in a test run (rundesk, the oracle, a -script run or a test bot): MsgBox and Popup only log their message,
+	// since nobody could answer them
 	bool IsTestRun();
 	// port: moves the mouse pointer to a point of the game (the originals' SetCursorPos). It does nothing in a test run
-	// (IsTestRun: a hidden desktop's warp could move the user's real pointer) and on the web (a page cannot move it).
+	// (IsTestRun: a hidden desktop's warp could move the user's real pointer).
 	void WarpMouse(int theX, int theY);
 };
 

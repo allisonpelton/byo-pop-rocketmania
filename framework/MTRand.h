@@ -35,8 +35,8 @@ public:
 	// the -tracehash FULL hash hashes these bytes (Sexy::GetRandState). Use GetState/SetState instead.
 	std::string Serialize();
 
-	// port: the complete state, the state words and mti (0..MTRAND_N+1), for a board that owns its RNG
-	// (games/bejeweled/docs/CODE_MODS_DESIGN.md 2.3): SetState(GetState()) goes on with exactly the same
+	// port: the complete state, the state words and mti (0..MTRAND_N+1), for a board that owns its RNG.
+	// SetState(GetState()) goes on with exactly the same
 	// draws. SetState returns false, and changes nothing, for an index outside that range or the all-zero
 	// state (the top bit of the first word and every other word 0), from which every draw is 0.
 	void GetState(uint32_t theState[MTRAND_N], int* theIndex) const;

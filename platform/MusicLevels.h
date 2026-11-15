@@ -1,13 +1,11 @@
-/* The originals' music engines against the port's renderers (docs/WEB_PLAYER.md, "Music levels"): the render settings and
-   the levels the port plays a game's music at, shared by the games (platform/Audio.cpp, platform/openmpt/OpenMPTPlayer.cpp,
-   framework/SDLMusicInterface.cpp, a game's own host) and the site's music player (web/music/openmpt_web.c, web/music.js), so
-   that a tune plays as loud in the player as in its game. C, so that the player's decoder can include it.
+/* The originals' music engines against the port's renderers: the render settings and the levels the port plays a game's
+   music at (platform/Audio.cpp, framework/SDLMusicInterface.cpp).
 
    The renderers: S3M, IT, XM and MOD go through libxmp-lite and MO3 and OXM through libopenmpt, as Platform::Mixer picks them.
    Measured on 2026-11-08 with tools/musiclevel (the first 30 s of every game's modules, each engine's own DLL decoding silently
    against the port's mixer): libxmp-lite is within about 1 dB of BASS 1.7, 1.8, 2.0 and 2.3 at their default amplify (50) and
    of FMOD 3.50 to 3.61 at full master volume, on S3M and IT alike (Seven Seas' IT 1.9 dB); libopenmpt on the same S3M and IT
-   files was 2 to 11 dB quieter, which is why the player renders them with libxmp-lite too. On MO3, libopenmpt against BASS
+   files was 2 to 11 dB quieter, which is why the port renders them with libxmp-lite too. On MO3, libopenmpt against BASS
    2.2 and 2.3 at amplify 50 was between 1.6 dB louder and 2.4 dB quieter from one module to the next, with no setting that
    explains it; it is left as it is. */
 #ifndef BYOPOP_MUSIC_LEVELS_H

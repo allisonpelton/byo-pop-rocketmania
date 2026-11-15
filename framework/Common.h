@@ -1,7 +1,7 @@
 #ifndef __SEXYAPPFRAMEWORK_COMMON_H__
 #define __SEXYAPPFRAMEWORK_COMMON_H__
 
-// Portable build (SDL2 / Emscripten): the Win32 includes of the original framework are replaced by
+// Portable build (SDL2): the Win32 includes of the original framework are replaced by
 // the small compatibility layer in PortCompat.h.
 
 #include <string>
@@ -118,8 +118,7 @@ uint				GetRandCount();
 // index, which the draw count implies); reads only (used by the -tracehash FULL hash).
 std::string			GetRandState();
 // port: the Rand() generator's complete state, the 624 state words and the index (MTRand::GetState); reads
-// only. A replay of a game on the global stream starts from it, and its CHECK hashes it
-// (games/bejeweled/docs/CODE_MODS_DESIGN.md 6.2, 6.6).
+// only. A replay of a game on the global stream starts from it, and its CHECK hashes it.
 void				GetRandMTState(uint32_t* theState, int* theIndex);
 // port: sets the Rand() generator's complete state (MTRand::SetState: false, and nothing changed, for a state it
 // refuses). For a game whose own framework seeded this generator otherwise than the port's SRand (BookWorm's 2004
@@ -150,7 +149,7 @@ std::string			Lower(const std::string& theData);
 std::wstring		Lower(const std::wstring& theData);
 std::string			Trim(const std::string& theString);
 std::wstring		Trim(const std::wstring& theString);
-// port: UTF-8 (SDL, the browser, mod.json) to Latin-1, the narrow SexyChar text the framework draws. Code
+// port: UTF-8 (SDL's text) to Latin-1, the narrow SexyChar text the framework draws. Code
 // points above U+00FF and malformed sequences are dropped, or become theReplacement when it is not 0.
 std::string			UTF8ToLatin1(const std::string& theString, char theReplacement = 0);
 bool				StringToInt(const std::string theString, int* theIntVal);

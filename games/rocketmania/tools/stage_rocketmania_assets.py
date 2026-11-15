@@ -13,7 +13,6 @@ import shutil
 import sys
 
 DEFAULT_INSTALLS = [
-    r"A:\SteamLibrary\steamapps\common\Rocket Mania Deluxe",
     r"C:\Program Files (x86)\Steam\steamapps\common\Rocket Mania Deluxe",
     r"C:\Program Files\Steam\steamapps\common\Rocket Mania Deluxe",
 ]
@@ -51,7 +50,7 @@ def main():
     os.makedirs(out, exist_ok=True)
 
     # The engine resolves paths case-insensitively; staged names are lowercase so case-sensitive file
-    # systems (Emscripten MEMFS/IDBFS, Linux) see the names the game code asks for.
+    # systems (Linux) see the names the game code asks for.
     count = 0
     for d in DIRS:
         sd = os.path.join(src, d)

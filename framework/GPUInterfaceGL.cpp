@@ -1,4 +1,4 @@
-// Sexy::GPUInterface's OpenGL ES 3.0 / WebGL2 implementation (GPUInterface.h): Direct3D 9's device state carried out
+// Sexy::GPUInterface's OpenGL ES 3.0 implementation (GPUInterface.h): Direct3D 9's device state carried out
 // through GL, with every convention that differs converted here (the list at the top of GPUInterface.h).
 #include "GPUInterface.h"
 #include "MemoryImage.h"
@@ -839,8 +839,8 @@ void GPUInterfaceGL::MakeDeviceObjects()
 	gGL.glGenBuffers(1, &mStreamIndexBuffer);
 	gGL.glGenSamplers(kStages, mSamplers);
 	gGL.glDisable(GL_DITHER);
-	// Cube maps filter across their faces' edges, as Direct3D 9 does on the cards the port stands for (OpenGL ES 3.0 and
-	// WebGL2 always do; desktop GL only with this switch)
+	// Cube maps filter across their faces' edges, as Direct3D 9 does on the cards the port stands for (OpenGL ES 3.0
+	// always does; desktop GL only with this switch)
 	if (!mContext->IsES())
 		gGL.glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	gGL.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
@@ -863,9 +863,9 @@ void GPUInterfaceGL::MakeScreen()
 	gGL.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mScreenColor, 0);
 }
 
-// D3D9 keeps its one depth surface bound across SetRenderTarget, so a smaller target shares the screen's. WebGL2 calls
-// a framebuffer whose attachments differ in size incomplete and drops its draws, so each size of target has its own
-// depth buffer here (a game that draws to a smaller target with the depth test on does not see the screen's depth).
+// D3D9 keeps its one depth surface bound across SetRenderTarget, so a smaller target shares the screen's. Here each size
+// of target has its own depth buffer, so that a framebuffer's attachments are all of one size (a game that draws to a
+// smaller target with the depth test on does not see the screen's depth).
 GLuint GPUInterfaceGL::DepthFor(int theWidth, int theHeight, bool* isNew)
 {
 	GLuint& aDepth = mDepths[std::make_pair(theWidth, theHeight)];
@@ -1083,6 +1083,10 @@ bool GPUInterfaceGL::CreateRenderTarget(Image* theImage, GPUFormat theFormat)
 	std::vector<unsigned char> aPixels((size_t)aData.mWidth * aData.mHeight * 4, 0);
 	MemoryImage* aMemoryImage = dynamic_cast<MemoryImage*>(theImage);
 	if (aMemoryImage != nullptr) {
+		// port: a picture whose pixels were dropped after an upload has them again from its file, and keeps them: the target's
+		// texture is its pixels from now on (MemoryImage.h, mBitsSource)
+		aMemoryImage->RestoreBits();
+		aMemoryImage->mBitsLent = true;
 		aData.mBitsChangedCount = aMemoryImage->mBitsChangedCount;
 		if (theFormat == GPUFMT_A8R8G8B8 && aMemoryImage->mBits != nullptr)
 			aPixels = RGBAOf(aMemoryImage->mBits, aData.mWidth * aData.mHeight);
@@ -1464,7 +1468,10 @@ TextureData* GPUInterfaceGL::GetTexture(Image* theImage)
 		return nullptr;
 	}
 	if (aData.mTexture == 0 || aData.mBitsChangedCount != aMemoryImage->mBitsChangedCount)
+	{
 		UploadTexture(aMemoryImage, &aData);
+		aMemoryImage->DropBits();	// port: made again from the file when needed (MemoryImage.h, mBitsSource)
+	}
 	return &aData;
 }
 
@@ -1525,8 +1532,9 @@ bool IsCubeImage(Image* theImage)
 void GPUInterfaceGL::UploadTexture(MemoryImage* theImage, TextureData* theData)
 {
 	int aWidth = theImage->mWidth, aHeight = theImage->mHeight;
+	theImage->RestoreBits();  // port: pixels dropped after an earlier upload (MemoryImage.h)
 	theImage->CommitBits();  // mHasAlpha and mHasTrans, as SAF's texture upload takes them
-	unsigned long* aBits = theImage->GetBits();
+	unsigned long* aBits = theImage->ReadBits();
 	if (aBits == nullptr)
 		return;
 	GPUFormat aFormat = mPolicy.TextureFormat(theImage->mHasAlpha, theImage->mHasTrans, theImage->mD3DFlags);
@@ -2165,7 +2173,7 @@ void GPUInterfaceGL::DrawPrimitiveUP(GPUPrimitiveType theType, int thePrimitiveC
 			theVertices = aLines.data();
 		}
 	}
-	// Orphaned and filled again for every draw: WebGL2 has no client-side arrays
+	// Orphaned and filled again for every draw (no client-side arrays)
 	gGL.glBindBuffer(GL_ARRAY_BUFFER, mStreamBuffer);
 	gGL.glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)aStride * aCount, theVertices, GL_STREAM_DRAW);
 	SetVertexAttributes(theFVF, nullptr, aStride);

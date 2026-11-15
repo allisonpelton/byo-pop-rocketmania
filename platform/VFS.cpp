@@ -101,8 +101,7 @@ bool MakeDirs(const std::string& thePath)
 	return IsDirectory(p);
 }
 
-// Directory listings are cached per real directory; asset folders don't change while the game runs
-// except through the mod manager, which calls SetModRoots() and clears the cache.
+// Directory listings are cached per real directory; asset folders don't change while the game runs.
 static std::mutex gCacheMutex;
 static std::map<std::string, std::map<std::string, std::string>> gDirCache;
 
@@ -181,13 +180,6 @@ void VFS::SetBaseDir(const std::string& theDir)
 	gDirCache.clear();
 }
 
-void VFS::SetModRoots(const std::vector<VFSRoot>& theRoots)
-{
-	mModRoots = theRoots;
-	std::lock_guard<std::mutex> lock(gCacheMutex);
-	gDirCache.clear();
-}
-
 static bool IsAbsolute(const std::string& p)
 {
 	return (!p.empty() && (p[0] == '/' || p[0] == '\\')) || (p.size() > 1 && p[1] == ':');
@@ -210,8 +202,8 @@ static std::string HostPath(const std::string& p)
 
 // Before HostPath, such a path was used as it was, so a save written then is a file whose name holds the
 // backslashes ("users\users.dat" in the user dir). When the slash form is missing and that file exists, it is
-// renamed once to the slash form, so the player's earlier saves are found. On the web a localStorage backup made
-// before the move can bring the old name back at boot (with its own time); then the newer of the two is kept.
+// renamed once to the slash form, so the player's earlier saves are found. When both are there, the newer of the two is
+// kept.
 static void MoveBackslashFile(const std::string& p)
 {
 #ifndef _WIN32
@@ -240,25 +232,12 @@ static void MoveBackslashFile(const std::string& p)
 #endif
 }
 
-void VFS::SetRemaps(const std::map<std::string, VFSRemap>& theRemaps)
-{
-	mRemaps.clear();
-	for (const auto& kv : theRemaps)
-		mRemaps[Lower(Normalize(kv.first))] = kv.second;
-}
-
-const VFSRemap* VFS::GetRemap(const std::string& theGamePath) const
-{
-	auto it = mRemaps.find(Lower(Normalize(theGamePath)));
-	return it == mRemaps.end() ? nullptr : &it->second;
-}
-
 std::string VFS::ResolveIn(const std::string& theRoot, const std::string& theGamePath) const
 {
 	return FindCaseInsensitive(theRoot, theGamePath);
 }
 
-std::string VFS::Resolve(const std::string& theGamePath, std::string* theModId) const
+std::string VFS::Resolve(const std::string& theGamePath) const
 {
 	if (IsAbsolute(theGamePath))
 	{
@@ -273,27 +252,7 @@ std::string VFS::Resolve(const std::string& theGamePath, std::string* theModId) 
 		std::string p = FindCaseInsensitive(mUserDir, rel.substr(9));
 		return p;
 	}
-	auto remap = mRemaps.find(lowerRel);
-	if (remap != mRemaps.end() && IsFile(remap->second.mRealPath))
-	{
-		if (theModId)
-			*theModId = remap->second.mModId;
-		return remap->second.mRealPath;
-	}
-	for (const VFSRoot& r : mModRoots)
-	{
-		std::string p = FindCaseInsensitive(r.mPath, rel);
-		if (!p.empty())
-		{
-			if (theModId)
-				*theModId = r.mModId;
-			return p;
-		}
-	}
-	std::string p = FindCaseInsensitive(mBaseDir, rel);
-	if (!p.empty() && theModId)
-		theModId->clear();
-	return p;
+	return FindCaseInsensitive(mBaseDir, rel);
 }
 
 FILE* VFS::Open(const std::string& theGamePath, const char* theMode) const
@@ -342,8 +301,8 @@ bool VFS::ReadAll(const std::string& theGamePath, std::vector<uint8_t>& theData)
 	if (!mGenerated.empty() && !IsAbsolute(theGamePath))
 	{
 		auto g = mGenerated.find(Lower(Normalize(theGamePath)));
-		std::string modId;
-		if ((g != mGenerated.end()) && (Resolve(theGamePath, &modId).empty() || modId.empty()))
+		// a generated file stands in whatever the base dir holds
+		if (g != mGenerated.end())
 		{
 			theData.assign(g->second.begin(), g->second.end());
 			return true;

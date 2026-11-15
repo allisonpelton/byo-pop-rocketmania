@@ -19,7 +19,7 @@
 // tight loop but 2 to 5 thousand in the running game, so counting adds about 0.4 to 1 % to BookWorm's total: docs/TEST_COMMANDS.md,
 // "What counting costs") and nothing else during the run: snapshots are taken in memory by the "cyclesplit <label>" command and
 // written, with one more at exit, as JSON lines when the loop ends.
-// Native only (Windows); the web build has no thread cycle counters and compiles every call out.
+// Windows only: elsewhere every call compiles out.
 
 #include <string>
 
@@ -51,6 +51,8 @@ void CycleSplitMark(const std::string& theLabel, int theUpdateCount);
 bool CycleSplitPause(bool thePause);
 // The last snapshot ("exit"), then the file. Once.
 void CycleSplitFinish(int theUpdateCount);
+// The cycles the calling thread has run (QueryThreadCycleTime), for a test's own count of one piece of work.
+unsigned long long CurrentThreadCycles();
 
 class CycleScope
 {
@@ -70,6 +72,7 @@ inline bool CycleSplitStart(const std::string&) { return false; }
 inline void CycleSplitMark(const std::string&, int) {}
 inline bool CycleSplitPause(bool) { return false; }
 inline void CycleSplitFinish(int) {}
+inline unsigned long long CurrentThreadCycles() { return 0; }
 
 class CycleScope
 {

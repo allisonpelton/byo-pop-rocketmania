@@ -16,10 +16,6 @@
 #include <cstdio>
 #include <ctime>
 
-#ifdef __EMSCRIPTEN__
-#include "WebProfiles.h"
-#endif
-
 using namespace Sexy;
 
 // port: the game's dialog buttons: the Showcard font, the label of the given text
@@ -457,7 +453,7 @@ void OptionsDialog::ButtonDepress(int theId)
 			mApp->mGameSelector->HeadBesideMenu();
 		return;
 	}
-	// (the original's other buttons: register, check for updates, the partner links, a PopCap web page: not ported)
+	// (the original's other buttons: register, check for updates, the partner links and PopCap's own: not ported)
 	if (theId == BUTTON_CREDITS)
 		mApp->ShowCredits();
 	else if (theId == BUTTON_RESET_HINTS)
@@ -834,7 +830,8 @@ void HighScoreDisplayDialog::AddScore(const SexyString& theName)
 	mHighlightMode = aMode;
 	mHighlightRank = aRank - 1;
 
-	// port: the original saves the lists when the dialog goes away; a browser tab that is closed never gets there
+	// port: the original saves the lists when the dialog goes away; the port saves them here, so that a game closed
+	// before then keeps them
 	SaveScores();
 }
 
@@ -1033,10 +1030,6 @@ RecordScoreDialog::RecordScoreDialog(RocketApp* theApp, const SexyString& theMes
 	mEdit->SetColors(aEditColors, 5);
 	mEdit->mMaxPixels = 150;
 	mEdit->SetText(mApp->mLastScoreName);
-#ifdef __EMSCRIPTEN__
-	// the web page's player (framework/WebProfiles.h): under "fill" and "create" the box starts with the site's player
-	Byopop::SiteType("rocketmania", mEdit, false);
-#endif
 }
 
 // 0x414300

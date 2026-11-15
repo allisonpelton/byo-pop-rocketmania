@@ -1,16 +1,14 @@
 #ifndef __PLATFORM_PLACEHOLDERS_H__
 #define __PLATFORM_PLACEHOLDERS_H__
 
-// -placeholders (natively; ?placeholders=1 on the web pages): for testing copies of a game from other sources. A game
+// -placeholders: for testing copies of a game from other sources. A game
 // file that is missing gets a stand-in instead of ending the game: an image becomes a magenta and black checkerboard,
 // a sound is silent, a font without its descriptor draws with the framework's built-in letters (framework/
 // SexyAppBase.cpp GetImage, ImageFont.cpp, SDLSoundManager.cpp). Files that cannot be stood in for (a game's word
 // list, its difficulty table) are the game's to handle. Off by default: then a missing file fails as in the original.
 //
 // Each missing file is logged once ("placeholder: <path>"), written to <userdir>/missing-files.txt natively (the list of
-// the last run with the switch on: a run without it leaves the file as it was), passed
-// to the web page (Module.onMissingFile(path)) and counted in the mod menu's banner. A run with the switch on keeps
-// its high scores apart (the score key gets a "placeholders" entry, platform/ModManager.cpp).
+// the last run with the switch on: a run without it leaves the file as it was).
 
 #include <string>
 #include <vector>

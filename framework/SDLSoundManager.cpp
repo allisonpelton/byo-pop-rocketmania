@@ -255,7 +255,7 @@ bool SDLSoundManager::LoadSound(unsigned int theSfxID, const std::string& theFil
 	bool hasExt = dot != std::string::npos && (slash == std::string::npos || dot > slash);
 	if (hasExt)
 		data = Mixer::Get().LoadSound(name);
-	// The framework probes extensions when the name has none (and mods may swap formats).
+	// The framework probes extensions when the name has none.
 	std::string stem = hasExt ? name.substr(0, dot) : name;
 	for (int i = 0; !data && kSoundExtensions[i]; i++)
 	{

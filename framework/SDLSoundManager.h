@@ -114,7 +114,7 @@ public:
 	virtual void StopAllSounds();
 	virtual int GetFreeSoundId();
 	virtual int GetNumSounds();
-	// port: the bytes of the loaded sounds' samples (the site's performance panel, web only)
+	// port: the bytes of the loaded sounds' samples (the memreport command)
 	size_t GetSoundBytes() const;
 };
 

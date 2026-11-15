@@ -27,13 +27,11 @@ GLContext* GLContext::Create(SDL_Window* theWindow)
 	}
 	bool isES = true;
 	SDL_GLContext aContext = TryContext(theWindow, SDL_GL_CONTEXT_PROFILE_ES, 3, 0);
-#ifndef __EMSCRIPTEN__
 	if (aContext == nullptr) {
 		SDL_Log("GL: no ES 3.0 context (%s), trying GL 3.3 core", SDL_GetError());
 		isES = false;
 		aContext = TryContext(theWindow, SDL_GL_CONTEXT_PROFILE_CORE, 3, 3);
 	}
-#endif
 	if (aContext == nullptr) {
 		SDL_Log("GL: no context could be made: %s", SDL_GetError());
 		return nullptr;

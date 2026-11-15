@@ -22,7 +22,7 @@ class Graphics;
 // The original's C library random numbers: MSVC's rand()/srand() (holdrand = holdrand * 214013 + 2531011,
 // result (holdrand >> 16) & 0x7fff, initial holdrand 1). The 2004 SexyApp::Init seeds the main thread
 // with srand(GetTickCount()); a game's Init reseeds this emulation the same way (or with -seed=N in test
-// runs). The host's rand() differs on Emscripten, so the ports never call it.
+// runs). The ports never call the host's rand().
 void	CrtSRand(unsigned int theSeed);
 int		CrtRand();
 unsigned int	CrtRandState();	// the generator's state word (test logs compare it with the original's)

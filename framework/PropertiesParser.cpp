@@ -124,7 +124,7 @@ bool PropertiesParser::ParseProperties()
 
 				std::string anId = SexyStringToStringFast(aXMLElement.mAttributes[_S("id")]);
 
-				// port: replaces an earlier array of the same id, as SetString etc. do, so a mod's properties
+				// port: replaces an earlier array of the same id, as SetString etc. do, so a later properties
 				// file can change one (the original inserts: the first wins; the games' files have no repeats)
 				mApp->mStringVectorProperties[anId] = aDef;
 			}

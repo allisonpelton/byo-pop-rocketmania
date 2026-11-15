@@ -1,7 +1,7 @@
 #ifndef __BUILTINFONT_H__
 #define __BUILTINFONT_H__
 
-// port: the framework's own font, so framework UI (the mod menu, framework/ModMenu.h) has text before a game
+// port: the framework's own font, so framework UI has text before a game
 // has loaded any art, and in every game. A Latin-1 bitmap font written for this port (no game or third-party
 // glyphs): a 12 px cell, caps 8 px tall, lower case 6 px, proportional advances. ASCII 33..126 and the Latin-1
 // symbols are drawn by hand; the accented letters are composed from a base letter and an accent. Every glyph is

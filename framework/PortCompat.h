@@ -2,7 +2,7 @@
 #define __SEXY_PORTCOMPAT_H__
 
 // Minimal stand-ins for the Win32 types/functions the original SexyAppFramework sources use, so the
-// platform-neutral parts compile unchanged on SDL2 desktop builds and Emscripten.
+// platform-neutral parts compile unchanged on SDL2.
 
 #include <cstdint>
 #include <cstring>

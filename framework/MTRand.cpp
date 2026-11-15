@@ -42,7 +42,7 @@ email: m-mat @ math.sci.hiroshima-u.ac.jp (remove space)
 
 using namespace Sexy;
 
-// port: the generator and Serialize() rely on 32-bit unsigned long (true for i686 Windows and wasm32)
+// port: the generator and Serialize() rely on 32-bit unsigned long (true for i686 Windows)
 static_assert(sizeof(unsigned long) == 4, "MTRand expects a 32-bit unsigned long");
 
 /* Period parameters */  

@@ -2,7 +2,7 @@
 #define __PLATFORM_SAVEIMPORT_H__
 
 // -importsaves[=<install folder>]: brings the saves, high scores and settings of the original game, installed on this computer, into the
-// port's user dir (docs/WEB_PLAYER.md, "Importing saves from an installed game"). Each game's main.cpp calls this once its user dir and game
+// port's user dir. Each game's main.cpp calls this once its user dir and game
 // folder are known; with the option the import runs and the game then exits without starting; without it nothing happens at all.
 //
 // What is taken is only what the table lists for the game (platform/saveimport.json, compiled in): the original's registry values

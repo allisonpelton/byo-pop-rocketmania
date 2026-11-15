@@ -1,7 +1,7 @@
 #ifndef __PLATFORM_JSON_H__
 #define __PLATFORM_JSON_H__
 
-// Small JSON reader/writer for mod manifests, tunables and settings (no exceptions, no dependencies).
+// Small JSON reader/writer (no exceptions, no dependencies).
 
 #include <map>
 #include <memory>

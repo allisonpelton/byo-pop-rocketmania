@@ -1,10 +1,9 @@
 #ifndef __PLATFORM_AUDIO_H__
 #define __PLATFORM_AUDIO_H__
 
-// Software mixer on top of SDL2 audio, shared by native and Emscripten builds.
+// Software mixer on top of SDL2 audio.
 //
-// Output is float stereo at the device's native rate (48 kHz on the web, where the AudioContext is
-// created by us because SDL would otherwise inherit a 96/192 kHz context and underrun).
+// Output is float stereo at the device's native rate.
 // Sound effects are decoded and resampled once at load time; tracker music (S3M/MOD/XM/IT) is
 // rendered by libxmp-lite at the device rate inside the audio callback. Other module formats (MO3 via
 // libopenmpt, platform/openmpt/) are rendered by a ModulePlayer a game registers.
@@ -43,30 +42,6 @@ public:
 	// every channel when the player cannot tell.
 	virtual int GetChannelVolume(int theChannel) { return -1; }
 	virtual void SetChannelVolume(int theChannel, int theVolume) {}
-#ifdef __EMSCRIPTEN__
-	// What the site's Music window shows of the module a game plays (docs/WEB_PLAYER.md, "Following a game"; Mixer's
-	// byopop_music_* exports). Web only, and asked only while that window follows the game. A player that cannot tell
-	// returns false, "" and 0: the window then shows the game's spectrum only.
-	// Where the player is: the pattern, the row, the pattern's rows, the module's channels and the order.
-	virtual bool GetView(int theOut[5]) { return false; }
-	// One row of a pattern, its channels' cells separated by '|' (libopenmpt's notation, as the window's own decoder gives it).
-	virtual std::string GetRowText(int thePattern, int theRow) { return std::string(); }
-	// Which channels play a note anywhere in the module: theOut[c] 1 or 0, up to theMax; returns the module's channels.
-	virtual int GetUsedChannels(unsigned char* theOut, int theMax) { return 0; }
-	// The module's own title, "" when it has none.
-	virtual std::string GetTitle() { return std::string(); }
-	// Its instruments' names (its samples' where it has no instruments), a line each as ModuleText.h's byopop_name_line
-	// writes them ("1A Bass"), empty names left out.
-	virtual std::string GetInstrumentNames() { return std::string(); }
-	// Mutes a channel (true) or brings it back (false), for the window's tracker; false when the player cannot.
-	virtual bool SetChannelMute(int theChannel, bool theMute) { return false; }
-	// A pattern's rows per beat and per bar as its file stores them (beat << 16 | bar), 0 when it stores none.
-	virtual int GetMeter(int thePattern) { return 0; }
-	// The current speed in ticks a row, 0 when the player cannot tell (with GetTempo's BPM, a row's length).
-	virtual int GetSpeed() { return 0; }
-	// The module's orders (its order list's length), 0 when the player cannot tell.
-	virtual int GetOrders() { return 0; }
-#endif
 };
 
 typedef bool (*ModuleDetector)(const std::vector<uint8_t>& theFile);
@@ -80,6 +55,7 @@ struct SoundData
 	int mChannels = 1;
 	int mRate = 48000;
 	size_t mFrames = 0;
+	std::string mName;  // the game path it was loaded from (LoadSoundData's theName)
 
 	size_t Bytes() const { return mSamples.capacity() * sizeof(int16_t); }
 };
@@ -120,11 +96,10 @@ public:
 	bool IsGameClocked() const { return mGameClocked; }
 	void AdvanceVoices(double theMilliseconds);
 
-	// --- songs (tracker modules via libxmp or a registered ModulePlayer, or Ogg/WAV tracks from mods) ---
+	// --- songs (tracker modules via libxmp or a registered ModulePlayer, or Ogg/WAV tracks) ---
 	// Files theDetector accepts are loaded with theFactory instead of libxmp-lite (first match wins).
 	static void RegisterModuleFormat(ModuleDetector theDetector, ModuleFactory theFactory);
-	// Returns a song handle (>0) or 0 on failure. A mod remap of theGamePath (VFS::GetRemap) can set a
-	// start order inside a multi-song module, a stream loop point and a per-track gain.
+	// Returns a song handle (>0) or 0 on failure.
 	int LoadSong(const std::string& theGamePath);
 	// A song a game renders itself, such as a synthesizer its own sequencer plays live (TipTop's MIDI music):
 	// the mixer calls thePlayer's Render in the audio callback, so the game changes the player's state only
@@ -158,62 +133,12 @@ public:
 	void SetSongTempo(int theSong, int theBPM);
 	int GetSongChannelVolume(int theSong, int theChannel);
 	void SetSongChannelVolume(int theSong, int theChannel, int theVolume);
-#ifdef __EMSCRIPTEN__
-	// The site's Music window following the game (docs/WEB_PLAYER.md, "Following a game"; Audio.cpp's byopop_music_*). The
-	// song it shows: the loudest one playing (its handle, 0 for none), and as JSON where it is ({"song", "kind": "module" or
-	// "stream", and for a module "pattern", "row", "rows", "channels", "order", "speed", "bpm" (0 where the player cannot tell),
-	// "orders", "title"}); a row's cells; the channels used; the instruments' names; a channel muted or brought back (the
-	// window's own control, not the game's); a pattern's rows per beat and bar as its file stores them; the song moved to an
-	// order and row (the window's seek bar, Previous and Next while it follows the game: the music the game plays changes).
-	int WebFollowedSong();
-	std::string WebSongView(int theSong);
-	std::string WebSongRow(int theSong, int thePattern, int theRow);
-	std::string WebSongUsed(int theSong);
-	std::string WebSongNames(int theSong);
-	bool WebSongMute(int theSong, int theChannel, bool theMute);
-	int WebSongMeter(int theSong, int thePattern);
-	bool WebSongSeek(int theSong, int theOrder, int theRow);
-#endif
 
-#ifdef __EMSCRIPTEN__
-	// On the web the page's starting volume (web/settings.js, docs/WEB_PLAYER.md, "Site settings") reaches a game with no
-	// volume option of its own (Cosmic Bugs, Water Bugs) through these two gains. The game sets them itself (its music
-	// volume at each level), so the page's level is kept apart and multiplies what the game sets: SetSiteGains is the
-	// page's, 1 leaves the game's gains as they are.
-	void SetMusicMasterGain(float theGain) { mMusicAsked = theGain; mMusicMaster = theGain * mSiteMusic; }
-	void SetSfxMasterGain(float theGain) { mSfxAsked = theGain; mSfxMaster = theGain * mSiteSfx; }
-	void SetSiteGains(float theMusic, float theSfx)
-	{
-		mSiteMusic = theMusic;
-		mSiteSfx = theSfx;
-		SetMusicMasterGain(mMusicAsked);
-		SetSfxMasterGain(mSfxAsked);
-	}
-	float GetSiteMusicGain() const { return mSiteMusic; }
-	float GetSiteSfxGain() const { return mSiteSfx; }
-	// the gains in effect (the game's times the page's), which the page's tests read
-	float GetMusicMasterGain() const { return mMusicMaster; }
-	float GetSfxMasterGain() const { return mSfxMaster; }
-#else
 	void SetMusicMasterGain(float theGain) { mMusicMaster = theGain; }
 	void SetSfxMasterGain(float theGain) { mSfxMaster = theGain; }
-#endif
 
-#ifdef __EMSCRIPTEN__
-	// The web page's own mute (its sound button, and the hold while the starting volume is applied, docs/WEB_PLAYER.md): like
-	// ?silent=1, the mixer goes on mixing, so that playback timing is as it was, and the device gets silence. It is
-	// below every game's volume, mute and options (so it changes and saves none of them), and it reaches every game
-	// that plays through the mixer, SexyAppFramework or not.
-	void SetPageMute(bool theMuted)
-	{
-		mPageMuted = theMuted;
-		if (theMuted)
-			DropQueued();
-	}
-	bool IsPageMuted() const { return mPageMuted; }
-#endif
-	// Drops the sound already mixed and waiting to be heard, so that a mute is heard at once (SexyAppBase::Mute). Only
-	// the web page's output keeps any (a few tens of milliseconds); natively this does nothing.
+	// Drops the sound already mixed and waiting to be heard, so that a mute is heard at once (SexyAppBase::Mute). SDL's
+	// output keeps none, so this does nothing.
 	void DropQueued();
 
 	void Lock();
@@ -233,25 +158,15 @@ private:
 	static void Callback(void* theUser, uint8_t* theStream, int theLen);
 	void Mix(float* theOut, int theFrames);
 	void MixVoice(Voice& v, float* theOut, int theFrames);
-#ifdef __EMSCRIPTEN__
-	// The web page's own output (Audio.cpp, byopop_audio_open): an AudioWorklet with a short queue that asks for each chunk.
-	bool InitPage();
-	static float* PageRender(Mixer* theMixer, int theFrames);  // mixes theFrames for the page, returns them interleaved
-	void PageLead(Voice& v);  // mixes a voice just started into the sound already queued
-	std::vector<float> mPageBuffer;
-	std::vector<float> mLeadBuffer;
-#endif
+	// Gives a tracker module song its player the first time it is needed (LoadSong keeps only the file). Main thread,
+	// outside the lock; false when the song has no player (not a module, or its file did not load).
+	bool OpenModule(int theSong);
 
 	uint32_t mDevice = 0;
 	int mRate = 48000;
 	float mMusicMaster = 1.0f;
 	float mSfxMaster = 1.0f;
-	bool mSilent = false;  // web test runs (web/shell.html ?silent=1): mix as usual, output silence
-#ifdef __EMSCRIPTEN__
-	std::atomic<bool> mPageMuted{false};  // the web page's mute (SetPageMute): likewise
-	float mMusicAsked = 1.0f, mSfxAsked = 1.0f;  // the gains the game last set (SetMusicMasterGain, SetSfxMasterGain)
-	float mSiteMusic = 1.0f, mSiteSfx = 1.0f;    // the page's starting volume for a game with no volume option (SetSiteGains)
-#endif
+	bool mSilent = false;  // mix as usual, output silence
 	bool mOffline = false; // InitOffline: voices without a device
 	bool mGameClocked = false;  // SetGameClocked: AdvanceVoices moves the voices, not Mix
 	std::vector<std::unique_ptr<Voice>> mVoices;

@@ -1,4 +1,5 @@
 #include "ImageLoader.h"
+#include "GIFDecoder.h"
 #include "VFS.h"
 
 #include <stb_image.h>
@@ -38,8 +39,6 @@ static std::vector<std::string>& ImageExtensions()
 	return sExtensions;
 }
 
-static std::map<std::string, int> gScaleOverrides;  // key: modId + '|' + normalized lower path
-static std::map<std::string, int> gModDefaultScales;
 static ImageGenerator gImageGenerator;
 
 void SetImageGenerator(ImageGenerator theGenerator)
@@ -51,27 +50,6 @@ static std::string LowerStr(std::string s)
 {
 	std::transform(s.begin(), s.end(), s.begin(), ::tolower);
 	return s;
-}
-
-void SetImageScaleOverride(const std::string& theModId, const std::string& theGamePath, int theScale)
-{
-	std::string p = LowerStr(VFS::Normalize(theGamePath));
-	size_t dot = p.find_last_of('.');
-	size_t slash = p.find_last_of('/');
-	if (dot != std::string::npos && (slash == std::string::npos || dot > slash))
-		p = p.substr(0, dot);
-	gScaleOverrides[theModId + "|" + p] = theScale;
-}
-
-void SetModDefaultImageScale(const std::string& theModId, int theScale)
-{
-	gModDefaultScales[theModId] = theScale;
-}
-
-void ClearImageScaleOverrides()
-{
-	gScaleOverrides.clear();
-	gModDefaultScales.clear();
 }
 
 // The game's editbox.png has a tEXt chunk before IHDR. PopCap's PNG reader accepted that, stb_image
@@ -152,6 +130,12 @@ bool DecodeImage(const std::vector<uint8_t>& theData, int& theWidth, int& theHei
 			*theHasAlpha = false;
 		return true;
 	}
+
+	// port: GIFs through our own decoder, which gives stb_image's pixels in a fraction of its time (GIFDecoder.h); a file it
+	// leaves (one stb would refuse or decode some other way) goes on to stb
+	if ((theData.size() >= 4) && (memcmp(theData.data(), "GIF8", 4) == 0) &&
+		DecodeGIF(theData.data(), theData.size(), theWidth, theHeight, theBits, theHasAlpha))
+		return true;
 
 	std::vector<uint8_t> reordered;
 	const std::vector<uint8_t>& data = MoveIHDRFirst(theData, reordered) ? reordered : theData;
@@ -318,18 +302,16 @@ static bool LoadGameImageLayers(const std::string& theGamePath, LoadedImage& the
 
 	struct Layer
 	{
-		std::string mRoot, mModId;
+		std::string mRoot;
 	};
 	std::vector<Layer> layers;
-	for (const VFSRoot& r : VFS::Get().GetModRoots())
-		layers.push_back({r.mPath, r.mModId});
-	layers.push_back({VFS::Get().GetBaseDir(), ""});
+	layers.push_back({VFS::Get().GetBaseDir()});
 
 	for (size_t li = 0; li < layers.size(); li++)
 	{
 		const Layer& layer = layers[li];
 
-		// A generated image stands between the mods and the game's files
+		// A generated image comes before the game's files
 		if ((li + 1 == layers.size()) && gImageGenerator)
 		{
 			LoadedImage generated;
@@ -337,7 +319,7 @@ static bool LoadGameImageLayers(const std::string& theGamePath, LoadedImage& the
 			{
 				if (generated.mHDBits.empty())
 					generated.mHDScale = 1;
-				generated.mModId.clear();
+				generated.mGenerated = true;
 				theOut = std::move(generated);
 				return true;
 			}
@@ -350,22 +332,7 @@ static bool LoadGameImageLayers(const std::string& theGamePath, LoadedImage& the
 		if (hd.mPath.empty() && one.mPath.empty() && maskHD.mPath.empty() && maskOne.mPath.empty())
 			continue;
 
-		// An explicit "scale" from the mod manifest marks a plain-named file as HD.
-		int explicitScale = 1;
-		auto ov = gScaleOverrides.find(layer.mModId + "|" + LowerStr(dir.empty() ? stem : dir + "/" + stem));
-		if (ov != gScaleOverrides.end())
-			explicitScale = ov->second;
-		else if (!layer.mModId.empty() && gModDefaultScales.count(layer.mModId))
-			explicitScale = gModDefaultScales[layer.mModId];
-		if (explicitScale > 1 && hd.mPath.empty() && !one.mPath.empty())
-		{
-			hd = one;
-			hd.mScale = explicitScale;
-			one = Candidate();
-		}
-
 		theOut = LoadedImage();
-		theOut.mModId = layer.mModId;
 		bool colourHasAlpha = false;
 
 		// --- HD colour ---
@@ -504,10 +471,7 @@ static bool LoadGameImageLayers(const std::string& theGamePath, LoadedImage& the
 
 bool LoadGameImage(const std::string& theGamePath, LoadedImage& theOut, bool theLookForAlpha)
 {
-	if (!LoadGameImageLayers(theGamePath, theOut, theLookForAlpha))
-		return false;
-	ApplyImagePatches(theGamePath, theOut);
-	return true;
+	return LoadGameImageLayers(theGamePath, theOut, theLookForAlpha);
 }
 
 }

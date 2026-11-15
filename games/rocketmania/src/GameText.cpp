@@ -188,7 +188,7 @@ bool Sexy::LoadGameTexts()
 		SDL_Log("GameText: %d of %d texts do not match this executable (Rocket Mania Deluxe 1.0 expected)", aMismatched,
 			NUM_GAME_TEXTS);
 
-	// Overrides from string properties (properties/texts.xml, mods)
+	// Overrides from string properties (properties/texts.xml)
 	if (gSexyAppBase != NULL)
 	{
 		for (int anId = 0; anId < NUM_GAME_TEXTS; anId++)

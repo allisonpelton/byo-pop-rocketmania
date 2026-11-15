@@ -1,7 +1,7 @@
 #ifndef __GLFUNCS_H__
 #define __GLFUNCS_H__
 
-// port: the OpenGL ES 3.0 / WebGL2 functions the GPU path uses (framework/GPUInterface.h), loaded at run time through
+// port: the OpenGL ES 3.0 functions the GPU path uses (framework/GPUInterface.h), loaded at run time through
 // SDL_GL_GetProcAddress once a context is current (platform/GLContext.h). Nothing links against a GL library, so games
 // that never make a GL context are built as before. The same calls exist in GL 3.3 core, which is the fallback where
 // the driver has no ES context.

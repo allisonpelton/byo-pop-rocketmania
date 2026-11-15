@@ -3,8 +3,8 @@
 
 // port: the GPU display path (draft 3 with its review's edits; GPUInterface is built and tested, GPU2D and GPUDisplay
 // are not written yet). It stands where PopCap's framework has its
-// D3DInterface: a Direct3D 9 device as the games drive it, carried out through OpenGL ES 3.0 / WebGL2 (natively the
-// driver's ES context, which rundesk's private desktop gives too, else GL 3.3 core). Only games that opt in use it
+// D3DInterface: a Direct3D 9 device as the games drive it, carried out through OpenGL ES 3.0 (the driver's ES context,
+// which rundesk's private desktop gives too, else GL 3.3 core). Only games that opt in use it
 // (GPUDisplay, below); every other game keeps DDInterface and its SDL_Renderer exactly as they are, and
 // Is3DAccelerated keeps its meaning for them.
 //
@@ -30,7 +30,7 @@
 //   the present quad to the default framebuffer flips. With the y flip, CULLMODE CW/CCW map to the opposite GL face.
 // - depth: the games' projections give z in [0,1]; z_gl = 2z - w. XYZRHW vertices take w = 1/rhw.
 // - colour: straight alpha as in D3D9 (the blend factors as set; the same blend on alpha; nothing premultiplied, unlike
-//   DDInterface). MemoryImage's ARGB words are swizzled to RGBA on the CPU at upload (GLES3 and WebGL2 have no BGRA),
+//   DDInterface). MemoryImage's ARGB words are swizzled to RGBA on the CPU at upload (GLES3 has no BGRA),
 //   D3DCOLOR vertex colours in the vertex stage. Dithering off. Fragment stages use highp.
 // - textures in 16-bit formats (R5G6B5, A4R4G4B4) are quantised as D3D9 stores them, truncating, when the policy's
 //   format rule picks them; the GL texture may be RGBA8 holding the quantised values.
@@ -50,8 +50,7 @@
 //   the scissor.
 // - sampler state belongs to the stage: one GL sampler object per stage.
 // - one depth buffer of the original's format (Twist: verify D16 or D24X8 in its CreateDevice) stays bound across
-//   SetRenderTarget, and SetRenderTarget resets the viewport to the whole target. (If WebGL2 rejects attachments of
-//   mixed sizes, each target size gets its own and the sharing holds for screen-sized targets only: checked first.)
+//   SetRenderTarget, and SetRenderTarget resets the viewport to the whole target.
 
 #include "Common.h"
 #include "Color.h"
@@ -293,8 +292,8 @@ class GPUInterface
 public:
 	// The GL implementation, on the context GPUDisplay made (current); null when the context cannot do what it needs
 	static GPUInterface* Create(GLContext* theContext, const GPUPolicy& thePolicy, int theWidth, int theHeight);
-	// One that accepts every call, draws nothing and answers as the policy says (headless runs: the verifier, the wasm
-	// under Node). A run that asked for 3D mode and got no context stops with an error rather than taking it silently,
+	// One that accepts every call, draws nothing and answers as the policy says (headless runs). A run that asked for 3D
+	// mode and got no context stops with an error rather than taking it silently,
 	// since 3D mode changes the games' logic and random draws, not only their drawing. IsNull is for GPUDisplay only;
 	// nothing the game branches on may come from it.
 	static GPUInterface* CreateNull(const GPUPolicy& thePolicy, int theWidth, int theHeight);
@@ -305,7 +304,7 @@ public:
 
 	// The device. A resize remakes the screen target and depth buffer.
 	virtual void Resize(int theWidth, int theHeight) = 0;
-	// The context was lost (webglcontextlost: preventDefault) and given back: programs are remade from their sources,
+	// The context was lost and given back: programs are remade from their sources,
 	// buffers from their CPU copies, targets are made again empty and every texture is dropped; the caller marks every
 	// widget dirty, as SDL_RENDER_TARGETS_RESET does.
 	virtual void ContextLost() = 0;
@@ -346,7 +345,7 @@ public:
 	// The device's StretchRect (slot 0xac's device branch, which is the only one taken: mCanStretchRectFromTextures): a
 	// copy from the screen or a target into a target with D3D's filter (Twist always passes LINEAR), no shader, the
 	// scissor off for the blit; the source must be a target, else nothing happens. It calls PreDraw first. The screen is
-	// always copied before it is sampled: WebGL2 rejects drawing from the target being drawn to.
+	// always copied before it is sampled: GL leaves sampling the target being drawn to undefined.
 	virtual void StretchRect(Image* theSource, const Rect& theSrcRect, Image* theDest, const Rect& theDestRect,
 		GPUTextureFilter theFilter) = 0;
 	// [0x9c, 0x124]: theFlags of GPUCLEAR_*; the colour is D3DCOLOR (ARGB), z in [0,1]
@@ -409,8 +408,8 @@ public:
 	virtual std::vector<std::string> GetUsedProgramKeys() = 0;
 	virtual void Precompile(const std::vector<std::string>& theKeys) = 0;
 
-	// Primitives. User-pointer vertices of any FVF above go through a streaming buffer (bufferSubData with orphaning;
-	// WebGL2 has no client arrays) [0x7c]. Buffers hold the meshes [0x38, 0x10c].
+	// Primitives. User-pointer vertices of any FVF above go through a streaming buffer (bufferSubData with orphaning)
+	// [0x7c]. Buffers hold the meshes [0x38, 0x10c].
 	virtual void DrawPrimitiveUP(GPUPrimitiveType theType, int thePrimitiveCount, unsigned long theFVF,
 		const void* theVertices, int theStride) = 0;
 	virtual GPUBuffer CreateVertexBuffer(unsigned long theFVF, const void* theVertices, int theCount, int theStride) = 0;
@@ -477,13 +476,13 @@ public:
 //   on a 3D change (0x69ed33), so there is no live handover. GPUDisplay serves 3D runs first, and 2D runs keep today's
 //   DDInterface. Later 2D mode moves to the framework's software 2D path (queued), the screen's bits uploaded once a
 //   frame and presented by the GL quad, compared with the original in 2D mode by shotdiff, not with today's
-//   SDL_Renderer screen. An in-process restart must not leave the web canvas on WebGL1.
+//   SDL_Renderer screen.
 // - DDInterface first gets a behaviour-neutral refactor on main (its renderer-free geometry in one helper both displays
 //   use: letterboxing and the presentation rect, WindowToLogical and LogicalToWindow, HiDPI, the cursor's placement,
 //   resize and full screen; the methods SexyAppBase calls made virtual), checked with Bejeweled's suite; its spec goes
 //   to the coordinator first. Render scale stays 1 on the D3D9 path.
-// - platform/GLContext: the window with SDL_WINDOW_OPENGL, ES 3.0 / WebGL2 (-sMAX_WEBGL_VERSION=2 for the games that opt
-//   in), else GL 3.3 core with a VAO bound and the shaders' version line rewritten. No multisampling is asked for;
+// - platform/GLContext: the window with SDL_WINDOW_OPENGL, ES 3.0, else GL 3.3 core with a VAO bound and the shaders'
+//   version line rewritten. No multisampling is asked for;
 //   drivers that force it are harmless because the frame is drawn into an FBO and presented by a quad.
 //
 // The unit test (tools/check.sh gpu): on the real GPU under rundesk (its private desktop gives SDL GL 3.3 core and an

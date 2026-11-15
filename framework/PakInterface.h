@@ -3,7 +3,7 @@
 
 // port: portable replacement for PakLib's PakInterface.h. Bejeweled ships loose files (no main.pak),
 // so these behave like the original's stdio fallback, but every file is looked up through
-// Platform::VFS (mod overlay, case-insensitive names, '\' or '/' separators).
+// Platform::VFS (case-insensitive names, '\' or '/' separators).
 //
 // Read-only opens load the whole file into memory. Without 'b' in the mode, the Win32 CRT text-mode
 // rules are applied (CR LF -> LF, Ctrl-Z ends the file) so parsing is identical on every platform.

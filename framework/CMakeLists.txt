@@ -9,9 +9,8 @@ file(GLOB FRAMEWORK_SOURCES CONFIGURE_DEPENDS
 # Software triangle rasterizer pieces are #included by SWTri.cpp, not compiled on their own.
 list(FILTER FRAMEWORK_SOURCES EXCLUDE REGEX ".*/SWTri_[^/]*\\.cpp$")
 
-# The table of what is imported from an installed game (platform/saveimport.json; docs/WEB_PLAYER.md, "Importing saves from an
-# installed game"), compiled into the framework for platform/SaveImport.cpp, which every game's main.cpp calls for -importsaves. The
-# listing page reads the same file (cmake/ByopopWeb.cmake writes it as saveimport-table.js): one source of truth.
+# The table of what is imported from an installed game (platform/saveimport.json), compiled into the
+# framework for platform/SaveImport.cpp, which the game's main.cpp calls for -importsaves.
 set(SAVEIMPORT_JSON ${SHARED_ROOT}/platform/saveimport.json)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SAVEIMPORT_JSON})
 file(READ ${SAVEIMPORT_JSON} saveimport_text)
@@ -28,12 +27,16 @@ if(NOT saveimport_old STREQUAL saveimport_header)
   file(WRITE ${SAVEIMPORT_HEADER} "${saveimport_header}")
 endif()
 
+# The C runtime's qsort (platform/crt): a library of its own, because the headless Retro64 tools link it without the framework.
+add_library(sexycrt STATIC ${SHARED_ROOT}/platform/crt/CrtQsort.cpp)
+target_include_directories(sexycrt PUBLIC ${SHARED_ROOT})
+
 add_library(sexyframework STATIC ${FRAMEWORK_SOURCES})
 target_include_directories(sexyframework PUBLIC
   ${SHARED_ROOT}
   ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(sexyframework PRIVATE ${CMAKE_BINARY_DIR}/generated)
-target_link_libraries(sexyframework PUBLIC ${PORT_SDL} stb xmp_lite tremor minimp3)
+target_link_libraries(sexyframework PUBLIC ${PORT_SDL} stb xmp_lite tremor minimp3 sexycrt)
 # IJG libjpeg 6b for JPEG images (platform/JPEGDecoder.cpp); private: its headers are not for the games
 target_link_libraries(sexyframework PRIVATE ijgjpeg)
 if(NOT MSVC)
@@ -41,11 +44,7 @@ if(NOT MSVC)
   target_compile_options(sexyframework PRIVATE -Wno-deprecated-declarations -Wno-switch -Wno-parentheses
     -Wno-unused-value -Wno-dangling-else -Wno-format-security -Wno-char-subscripts)
 endif()
-if(EMSCRIPTEN)
-  # Emscripten's default 64 KB stack is too small for the framework (font descriptor parsing overflows it)
-  target_link_options(sexyframework PUBLIC "-lidbfs.js" "-sSTACK_SIZE=1048576")
-endif()
-if((NOT EMSCRIPTEN) AND (NOT MSVC) AND (CMAKE_SYSTEM_PROCESSOR MATCHES "^(i[3-6]86|x86)$"))
+if((NOT MSVC) AND (CMAKE_SYSTEM_PROCESSOR MATCHES "^(i[3-6]86|x86)$"))
   # The original computes doubles on the x87 with 53-bit precision control, which rounds like SSE2
   # doubles. x87 code at mingw's default 64-bit precision would not (it changes e.g. the gem-shrink
   # sizes), so keep floating point on SSE2 explicitly.

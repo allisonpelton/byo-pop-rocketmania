@@ -283,8 +283,8 @@ void SDLMusicInterface::SetVolume(double theVolume)
 
 // Bookworm Adventures' SexyBassMusicInterface::SetMusicAmplify (0x59aaf0) sets BASS_MUSIC_ATTRIB_AMPLIFY to
 // (int)(theAmp * 100). BASS 2.3 takes 0 to 100 and holds a larger value at 100; its default is 50. The gain is BASS's
-// measured level against libopenmpt's (platform/MusicLevels.h, which the site's music player shares). A song whose amplify
-// is never set keeps libopenmpt's level; a stream (a mod's Ogg in place of the module) is never amplified, as
+// measured level against libopenmpt's (platform/MusicLevels.h). A song whose amplify
+// is never set keeps libopenmpt's level; a stream (an Ogg track) is never amplified, as
 // BASS_MusicSetAttribute fails on one. The spectrum sees the amplify too: BASS's FFT of the same song is 5.35 times larger
 // at 100 than at 50 (mean magnitude), the 14.5 dB step.
 void SDLMusicInterface::SetMusicAmplify(int theSongId, double theAmp)

@@ -1,6 +1,5 @@
 #include "UserFiles.h"
 #include "VFS.h"
-#include "WebPersist.h"
 
 #include <cstdio>
 #include <cstring>
@@ -12,8 +11,6 @@
 
 namespace Platform
 {
-
-static void (*gUserDataChanged)() = nullptr;
 
 #ifdef _WIN32
 // UTF-8 to UTF-16 for the wide file API; empty if the text is not UTF-8
@@ -100,15 +97,12 @@ bool WriteUserFileAtomic(const std::string& theRelPath, const std::string& theDa
 		ok = ReplaceHostFile(aTemp, aPath);
 	if (!ok)
 		RemoveHostFile(aTemp);
-	UserDataChanged();
 	return ok;
 }
 
 bool RenameUserFile(const std::string& theFrom, const std::string& theTo)
 {
 	bool ok = ReplaceHostFile(UserPath(theFrom), UserPath(theTo));
-	if (ok)
-		UserDataChanged();
 	return ok;
 }
 
@@ -117,24 +111,7 @@ bool RemoveUserFile(const std::string& theRelPath)
 	std::string aPath = UserPath(theRelPath);
 	if (!IsFile(aPath) || !RemoveHostFile(aPath))
 		return false;
-	UserDataChanged();
 	return true;
-}
-
-void SetUserDataChangedCallback(void (*theCallback)())
-{
-	gUserDataChanged = theCallback;
-}
-
-void UserDataChanged()
-{
-	SyncUserData();
-	if (gUserDataChanged)
-		gUserDataChanged();
-#ifdef __EMSCRIPTEN__
-	else
-		BackupUserData(std::vector<BackupFile>());
-#endif
 }
 
 }

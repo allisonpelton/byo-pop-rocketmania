@@ -11,11 +11,6 @@
 
 #include <SDL.h>
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#include <emscripten/html5.h>
-#endif
-
 #include <set>
 #include <string>
 
@@ -28,21 +23,6 @@ static bool RecoverBitsFromGPU(MemoryImage* theImage)
 {
 	return (gGPUDisplay != NULL) && (gGPUDisplay->mDevice != NULL) && gGPUDisplay->mDevice->RecoverBits(theImage);
 }
-
-#ifdef __EMSCRIPTEN__
-// The canvas's WebGL context was dropped: preventDefault (the EM_TRUE) lets the browser give it back
-static EM_BOOL GPUContextLostCallback(int theEventType, const void* theReserved, void* theArg)
-{
-	((GPUDisplay*) theArg)->OnContextLost();
-	return EM_TRUE;
-}
-
-static EM_BOOL GPUContextRestoredCallback(int theEventType, const void* theReserved, void* theArg)
-{
-	((GPUDisplay*) theArg)->OnContextRestored();
-	return EM_TRUE;
-}
-#endif
 
 GPUDisplay::GPUDisplay(SexyAppBase* theApp, const GPUPolicy& thePolicy) :
 	DDInterface(theApp)
@@ -102,10 +82,6 @@ int GPUDisplay::Init(SDL_Window* theWindow, bool vsync)
 		mGPU2D = new GPU2D(mDevice, mPolicy);
 		mGPU2D->SetScreenSize(mWidth, mHeight);
 		SDL_Log("GPUDisplay: %s", mContext->Description().c_str());
-#ifdef __EMSCRIPTEN__
-		emscripten_set_webglcontextlost_callback("#canvas", this, EM_TRUE, GPUContextLostCallback);
-		emscripten_set_webglcontextrestored_callback("#canvas", this, EM_TRUE, GPUContextRestoredCallback);
-#endif
 	}
 	else
 	{
@@ -138,13 +114,6 @@ int GPUDisplay::Init(SDL_Window* theWindow, bool vsync)
 
 void GPUDisplay::Cleanup()
 {
-#ifdef __EMSCRIPTEN__
-	if (mContext != NULL)
-	{
-		emscripten_set_webglcontextlost_callback("#canvas", NULL, EM_TRUE, NULL);
-		emscripten_set_webglcontextrestored_callback("#canvas", NULL, EM_TRUE, NULL);
-	}
-#endif
 	if (mScreenImage != NULL)
 	{
 		DDImage* aScreenImage = mScreenImage;
@@ -336,6 +305,18 @@ void GPUDisplay::DrawTrianglesTex(Image* theTexture, const TriVertex theVertices
 void GPUDisplay::ClearRect(const Rect& theRect)
 {
 	LogOnce("ClearRect on the screen (the original clears the screen image's bits, which shows nothing)");
+}
+
+void GPUDisplay::PushTransform(const SexyMatrix3& theTransform, bool theConcatenate)
+{
+	if (mGPU2D != NULL)
+		mGPU2D->PushTransform(theTransform, theConcatenate);
+}
+
+void GPUDisplay::PopTransform()
+{
+	if (mGPU2D != NULL)
+		mGPU2D->PopTransform();
 }
 
 bool GPUDisplay::ReadScreen(ulong* theBits)
